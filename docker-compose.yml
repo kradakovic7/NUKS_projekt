@@ -1,0 +1,32 @@
+version: '3'
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "5000:5000"
+    depends_on:
+      - db
+    environment:
+      POSTGRES_USER: kradakovic7
+      POSTGRES_PASSWORD: katarina
+      POSTGRES_DB: katarina
+      POSTGRES_HOST: db
+
+  db:
+    image: postgres
+    restart: always
+    environment:
+      POSTGRES_USER: kradakovic7
+      POSTGRES_PASSWORD: katarina
+      POSTGRES_DB: katarina
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./backend/init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend

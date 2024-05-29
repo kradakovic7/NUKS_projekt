@@ -1,0 +1,8 @@
+-- backend/init.sql
+
+CREATE TABLE IF NOT EXISTS files (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    data BYTEA NOT NULL,
+    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

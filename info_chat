@@ -46,3 +46,12 @@ Step-by-Step Plan
 4)Docker Setup
 - Create Dockerfiles for frontend and backend.
 - Create a docker-compose.yml file to define services.
+
+
+
+ sudo docker build .
+ sudo docker images
+ sudo docker image inspect 99effaee7545
+ sudo docker run -d -p "5000:5000" 99effaee7545
+ sudo docker container ps
+ sudo docker container logs ___
