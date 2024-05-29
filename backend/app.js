@@ -45,6 +45,23 @@ app.get('/files', async (req, res) => {
   }
 });
 
+app.delete('/files/:id', async (req, res) => {
+  const id = req.params.id;
+  const query = 'DELETE FROM files WHERE id = $1 RETURNING *';
+  const values = [id];
+
+  try {
+    const result = await pool.query(query, values);
+    if (result.rowCount === 0) {
+      return res.status(404).send('File not found');
+    }
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server error');
+  }
+});
+
 app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
 });

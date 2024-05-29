@@ -38,6 +38,15 @@ function App() {
     }
   };
 
+  const handleFileDelete = async (id) => {
+    try {
+      await axios.delete(`http://localhost:5000/files/${id}`);
+      fetchFiles();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   return (
     <div className="App">
       <h1>Simple File Uploader</h1>
@@ -46,7 +55,10 @@ function App() {
       <h2>Uploaded Files</h2>
       <ul>
         {files.map((file) => (
-          <li key={file.id}>{file.name}</li>
+          <li key={file.id}>
+            {file.name}
+            <button onClick={() => handleFileDelete(file.id)}>Delete</button>
+          </li>
         ))}
       </ul>
     </div>
