@@ -1,7 +1,7 @@
-# SimpleFileUploader
+# SimpleToDoApp
 
 ## Description
-A simple file uploader application with a React frontend and Express backend. This application allows users to upload and delete files.
+A simple to-do application with a React frontend and Express backend. This application allows users to add, delete, edit, and toggle the completion status of tasks.
 
 ## Setup
 
@@ -11,45 +11,46 @@ A simple file uploader application with a React frontend and Express backend. Th
 3. Create a `backend/init.sql` file with the following content to initialize the database:
 
     ```sql
-    CREATE TABLE IF NOT EXISTS files (
+    CREATE TABLE IF NOT EXISTS todos (
         id SERIAL PRIMARY KEY,
-        name VARCHAR(255) NOT NULL,
-        data BYTEA NOT NULL,
-        uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        task VARCHAR(255) NOT NULL,
+        completed BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
     ```
 
-4. Update your `docker-compose.yml` file to include the volume mount for the SQL script:
+4. Ensure your `docker-compose.yml` file is set up correctly to include the volume mount for the SQL script:
 
     ```yaml
     version: '3'
     services:
+      db:
+        image: postgres
+        environment:
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: todoapp
+        volumes:
+          - ./backend/init.sql:/docker-entrypoint-initdb.d/init.sql
+        ports:
+          - "5432:5432"
       backend:
         build: ./backend
+        volumes:
+          - ./backend:/usr/src/app
         ports:
           - "5000:5000"
         depends_on:
           - db
         environment:
-          POSTGRES_USER: your_username
-          POSTGRES_PASSWORD: your_password
-          POSTGRES_DB: your_database
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: todoapp
           POSTGRES_HOST: db
-
-      db:
-        image: postgres
-        restart: always
-        environment:
-          POSTGRES_USER: your_username
-          POSTGRES_PASSWORD: your_password
-          POSTGRES_DB: your_database
-        ports:
-          - "5432:5432"
-        volumes:
-          - ./backend/init.sql:/docker-entrypoint-initdb.d/init.sql
-
       frontend:
         build: ./frontend
+        volumes:
+          - ./frontend:/usr/src/app
         ports:
           - "3000:3000"
         depends_on:
@@ -64,32 +65,49 @@ A simple file uploader application with a React frontend and Express backend. Th
 
 ## API Endpoints
 
-### POST /upload
-- Upload a file.
-- **Request:** `multipart/form-data`
-  - `file`: The file to be uploaded.
-- **Response:** JSON object containing the uploaded file details.
+### POST /todos
+- Add a new task.
+- **Request:** JSON object
+  - `task`: The task to be added.
+- **Response:** JSON object containing the added task details.
 
-### GET /files
-- Retrieve a list of uploaded files.
-- **Response:** JSON array of file objects.
+### GET /todos
+- Retrieve a list of tasks.
+- **Response:** JSON array of task objects.
 
-### DELETE /files/:id
-- Delete a file by ID.
+### DELETE /todos/:id
+- Delete a task by ID.
 - **Request Parameter:**
-  - `id`: The ID of the file to be deleted.
-- **Response:** JSON object containing the deleted file details.
+  - `id`: The ID of the task to be deleted.
+- **Response:** JSON object containing the deleted task details.
+
+### PUT /todos/:id
+- Update a task by ID.
+- **Request Parameter:**
+  - `id`: The ID of the task to be updated.
+- **Request Body:**
+  - `task`: The updated task description.
+  - `completed`: The new completion status of the task.
+- **Response:** JSON object containing the updated task details.
 
 ## Testing the Application
 
 1. **Open your application at `http://localhost:3000`.**
-2. **Upload a file:**
-   - Use the file input field to select a file.
-   - Click the upload button.
-   - The file should be uploaded and appear in the list below.
-3. **Delete a file:**
-   - Click the delete button next to the file you want to delete.
-   - The file should be removed from the list.
+2. **Add a task:**
+   - Use the input field to enter a new task.
+   - Click the add button.
+   - The task should be added and appear in the list below.
+3. **Edit a task:**
+   - Click the edit button next to the task you want to edit.
+   - Update the task description in the input field.
+   - Click the update button.
+   - The task should be updated in the list.
+4. **Delete a task:**
+   - Click the delete button next to the task you want to delete.
+   - The task should be removed from the list.
+5. **Toggle a task:**
+   - Click on the task text to toggle its completion status.
+   - The task text should be struck through if completed and normal if not.
 
 ### Frontend Code
 
@@ -98,69 +116,104 @@ A simple file uploader application with a React frontend and Express backend. Th
 ```javascript
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import './App.css';
 
 function App() {
-  const [files, setFiles] = useState([]);
-  const [file, setFile] = useState(null);
+    const [todos, setTodos] = useState([]);
+    const [task, setTask] = useState('');
+    const [editTaskId, setEditTaskId] = useState(null);
+    const [editTask, setEditTask] = useState('');
 
-  useEffect(() => {
-    fetchFiles();
-  }, []);
+    useEffect(() => {
+        fetchTodos();
+    }, []);
 
-  const fetchFiles = async () => {
-    try {
-      const res = await axios.get('http://localhost:5000/files');
-      setFiles(res.data);
-    } catch (err) {
-      console.error(err);
-    }
-  };
+    const fetchTodos = async () => {
+        try {
+            const res = await axios.get('http://localhost:5000/todos');
+            setTodos(res.data);
+        } catch (err) {
+            console.error(err);
+        }
+    };
 
-  const handleFileChange = (e) => {
-    setFile(e.target.files[0]);
-  };
+    const handleTaskChange = (e) => {
+        setTask(e.target.value);
+    };
 
-  const handleFileUpload = async () => {
-    const formData = new FormData();
-    formData.append('file', file);
+    const handleTaskSubmit = async (e) => {
+        e.preventDefault();
+        try {
+            if (editTaskId) {
+                await axios.put(`http://localhost:5000/todos/${editTaskId}`, { task: editTask, completed: false });
+                setEditTaskId(null);
+                setEditTask('');
+            } else {
+                await axios.post('http://localhost:5000/todos', { task });
+            }
+            fetchTodos();
+            setTask('');
+        } catch (err) {
+            console.error(err);
+        }
+    };
 
-    try {
-      await axios.post('http://localhost:5000/upload', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-      fetchFiles();
-    } catch (err) {
-      console.error(err);
-    }
-  };
+    const handleEditChange = (e) => {
+        setEditTask(e.target.value);
+    };
 
-  const handleFileDelete = async (id) => {
-    try {
-      await axios.delete(`http://localhost:5000/files/${id}`);
-      fetchFiles();
-    } catch (err) {
-      console.error(err);
-    }
-  };
+    const handleTaskDelete = async (id) => {
+        try {
+            await axios.delete(`http://localhost:5000/todos/${id}`);
+            fetchTodos();
+        } catch (err) {
+            console.error(err);
+        }
+    };
 
-  return (
-    <div className="App">
-      <h1>Simple File Uploader</h1>
-      <input type="file" onChange={handleFileChange} />
-      <button onClick={handleFileUpload}>Upload</button>
-      <h2>Uploaded Files</h2>
-      <ul>
-        {files.map((file) => (
-          <li key={file.id}>
-            {file.name}
-            <button onClick={() => handleFileDelete(file.id)}>Delete</button>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
+    const handleTaskToggle = async (id, completed) => {
+        try {
+            await axios.put(`http://localhost:5000/todos/${id}`, { completed });
+            fetchTodos();
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
+    const handleTaskEdit = (id, task) => {
+        setEditTaskId(id);
+        setEditTask(task);
+    };
+
+    return (
+        <div className="App">
+            <h1>Simple To-Do App</h1>
+            <form onSubmit={handleTaskSubmit}>
+                <input
+                    type="text"
+                    value={editTaskId ? editTask : task}
+                    onChange={editTaskId ? handleEditChange : handleTaskChange}
+                    placeholder="Enter a new task"
+                />
+                <button type="submit">{editTaskId ? 'Update Task' : 'Add Task'}</button>
+            </form>
+            <h2>To-Do List</h2>
+            <ul>
+                {todos.map((todo) => (
+                    <li key={todo.id}>
+                        <span
+                            style={{ textDecoration: todo.completed ? 'line-through' : 'none' }}
+                            onClick={() => handleTaskToggle(todo.id, !todo.completed)}
+                        >
+                            {todo.task}
+                        </span>
+                        <button onClick={() => handleTaskEdit(todo.id, todo.task)}>Edit</button>
+                        <button onClick={() => handleTaskDelete(todo.id)}>Delete</button>
+                    </li>
+                ))}
+            </ul>
+        </div>
+    );
 }
 
 export default App;
